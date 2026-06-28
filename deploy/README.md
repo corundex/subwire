@@ -26,7 +26,7 @@ cp .env.example .env && nano .env
 docker compose up -d --build
 ```
 
-The MCP endpoint is then `http://<host>:8080/mcp` — point Claude Desktop at it
+The MCP endpoint is then `http://<host>:8081/mcp` — point Claude Desktop at it
 via `mcp-remote`.
 
 ## Updating subwire
