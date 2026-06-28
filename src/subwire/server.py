@@ -14,6 +14,7 @@ import sys
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from .client import HttpClient, RequestError
 from .config import Config, ConfigError, load_config
@@ -135,6 +136,27 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--port", type=int, default=int(os.getenv("SUBWIRE_PORT", "8080"))
     )
+    parser.add_argument(
+        "--allowed-host",
+        action="append",
+        default=None,
+        metavar="HOST",
+        help=(
+            "Host header value to accept for the streamable-HTTP transport "
+            "(repeatable). Supports 'host:*' port-wildcard. Required for LAN "
+            "deploys reached by hostname; otherwise the MCP SDK rejects them "
+            "with 421 Misdirected Request."
+        ),
+    )
+    parser.add_argument(
+        "--disable-dns-rebinding-protection",
+        action="store_true",
+        default=False,
+        help=(
+            "Disable the streamable-HTTP transport's Host/Origin allowlist "
+            "entirely. Use only for trusted LAN deployments."
+        ),
+    )
     args = parser.parse_args(argv)
 
     try:
@@ -153,11 +175,45 @@ def main(argv: list[str] | None = None) -> None:
     if args.http:
         mcp.settings.host = args.host
         mcp.settings.port = args.port
+
+        # Effective transport security: CLI flags override config.
+        allowed_hosts = list(config.defaults.allowed_hosts)
+        if args.allowed_host:
+            allowed_hosts.extend(args.allowed_host)
+        disable_protection = (
+            args.disable_dns_rebinding_protection
+            or config.defaults.disable_dns_rebinding_protection
+        )
+        mcp.settings.transport_security = TransportSecuritySettings(
+            enable_dns_rebinding_protection=not disable_protection,
+            allowed_hosts=allowed_hosts,
+        )
+
         print(
             f"subwire: HTTP server on http://{args.host}:{args.port}  "
             f"(MCP endpoint: /mcp) — {len(config.targets)} target(s) configured",
             file=sys.stderr,
         )
+        if disable_protection:
+            print(
+                "subwire: DNS-rebinding protection DISABLED — accepting any "
+                "Host header. Use only on a trusted network.",
+                file=sys.stderr,
+            )
+        elif args.host in {"0.0.0.0", "::"} and not allowed_hosts:
+            # The SDK default allowlist is localhost-only, so binding to all
+            # interfaces and reaching the server by hostname will return 421.
+            # Surface the cause at startup rather than letting the user chase
+            # cryptic "Invalid Host header" lines.
+            print(
+                "subwire: WARNING — bound to all interfaces but no "
+                "defaults.allowed_hosts configured. Clients reaching this "
+                "server by hostname (e.g. subwire.home.lan) will get 421 "
+                "Misdirected Request. Add the hostnames to "
+                "defaults.allowed_hosts in config.yaml, pass --allowed-host, "
+                "or use --disable-dns-rebinding-protection.",
+                file=sys.stderr,
+            )
         mcp.run(transport="streamable-http")
     else:
         mcp.run(transport="stdio")

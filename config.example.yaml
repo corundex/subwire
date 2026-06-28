@@ -29,6 +29,18 @@ defaults:
   max_response_bytes: 100000  # cap returned body size; larger bodies truncated
   follow_redirects: true
 
+  # --- streamable-HTTP transport (only matters when running with --http) ------
+  # The MCP SDK protects the HTTP transport from DNS rebinding by checking the
+  # Host header against an allowlist. Its default allows only localhost, so a
+  # LAN client reaching this server by hostname gets `421 Misdirected Request`.
+  # List every hostname/port clients use; "host:*" port-wildcard supported.
+  # Or set disable_dns_rebinding_protection: true for a trusted LAN.
+  allowed_hosts: []
+    # - subwire.home.lan
+    # - subwire.home.lan:8081
+    # - master.home.lan:*
+  disable_dns_rebinding_protection: false
+
 security:
   # This tool is meant to reach internal hosts, so private ranges are allowed by
   # default. The one thing nobody's homelab needs — the cloud metadata endpoint —

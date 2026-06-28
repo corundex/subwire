@@ -110,6 +110,14 @@ class Defaults:
     read_only: bool = False
     max_response_bytes: int = 100_000
     follow_redirects: bool = True
+    # Streamable-HTTP transport DNS-rebinding protection. The MCP SDK rejects
+    # requests whose Host header isn't in `allowed_hosts` (defaults to
+    # localhost only) with `421 Misdirected Request`. For a LAN deploy you
+    # must either list the hostnames clients use (e.g. "subwire.home.lan",
+    # "master.home.lan:8081"; "host:*" port-wildcard supported) or disable
+    # the check outright.
+    allowed_hosts: list[str] = field(default_factory=list)
+    disable_dns_rebinding_protection: bool = False
 
     @staticmethod
     def from_dict(d: dict[str, Any]) -> "Defaults":
@@ -121,6 +129,10 @@ class Defaults:
             read_only=bool(d.get("read_only", False)),
             max_response_bytes=int(d.get("max_response_bytes", 100_000)),
             follow_redirects=bool(d.get("follow_redirects", True)),
+            allowed_hosts=[str(h) for h in (d.get("allowed_hosts") or [])],
+            disable_dns_rebinding_protection=bool(
+                d.get("disable_dns_rebinding_protection", False)
+            ),
         )
 
 
@@ -161,6 +173,14 @@ class Config:
                 self.defaults.verify = v  # path to CA bundle
         if (v := os.getenv("SUBWIRE_MAX_RESPONSE_BYTES")) is not None:
             self.defaults.max_response_bytes = int(v)
+        if (v := os.getenv("SUBWIRE_ALLOWED_HOSTS")) is not None:
+            self.defaults.allowed_hosts = [
+                h.strip() for h in v.split(",") if h.strip()
+            ]
+        if (v := os.getenv("SUBWIRE_DISABLE_DNS_REBINDING_PROTECTION")) is not None:
+            self.defaults.disable_dns_rebinding_protection = (
+                v.strip().lower() in {"1", "true", "yes"}
+            )
 
 
 def load_config(path: str | os.PathLike[str] | None) -> Config:

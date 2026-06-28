@@ -241,7 +241,8 @@ handy when a Docker volume mount is wrong.
 
 `SUBWIRE_CONFIG`, `SUBWIRE_HOST`, `SUBWIRE_PORT`, `SUBWIRE_READ_ONLY`,
 `SUBWIRE_ALLOW_HTTP`, `SUBWIRE_VERIFY` (`true`/`false`/CA path),
-`SUBWIRE_MAX_RESPONSE_BYTES`.
+`SUBWIRE_MAX_RESPONSE_BYTES`, `SUBWIRE_ALLOWED_HOSTS` (comma-separated, for
+the `--http` transport allowlist), `SUBWIRE_DISABLE_DNS_REBINDING_PROTECTION`.
 
 ## Docker
 
@@ -318,6 +319,16 @@ Put the file in [`certs/`](./certs/), reference it as
 **A request fails with a certificate error against an internal host.** The host's
 cert almost certainly lacks a `subjectAltName` (CN alone is ignored). Re-issue the
 cert with proper SANs — see [Internal CA / wildcard certs](#internal-ca--wildcard-certs).
+
+**Clients get "421 Misdirected Request" / server logs "Invalid Host header".**
+The MCP streamable-HTTP transport rejects any `Host` header that isn't in its
+allowlist (default: localhost only) — DNS-rebinding protection. List the
+hostnames clients use under `defaults.allowed_hosts` (e.g. `subwire.home.lan`,
+`master.home.lan:8081`; `host:*` port-wildcard supported), or set
+`defaults.disable_dns_rebinding_protection: true` for a trusted LAN. The same
+knobs are available as `--allowed-host` / `--disable-dns-rebinding-protection`
+on the CLI and `SUBWIRE_ALLOWED_HOSTS` / `SUBWIRE_DISABLE_DNS_REBINDING_PROTECTION`
+in the environment.
 
 **"blocked by security policy".** Working as intended — the request hit a gate.
 The message says which one (deny-list, read-only mode, a target's method
