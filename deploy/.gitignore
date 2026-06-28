@@ -1,0 +1,11 @@
+# In YOUR deploy repo, config.yaml and your CA cert ARE data you want versioned
+# (so `git pull && docker compose up` works on a remote host). Only true secrets
+# are ignored:
+.env
+*.key            # private keys must never be committed
+*.pem.key
+
+# If you'd rather NOT version your config or CA cert (e.g. a public deploy repo),
+# uncomment these:
+# config.yaml
+# certs/*.pem

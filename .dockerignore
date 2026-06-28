@@ -1,0 +1,13 @@
+.git
+.gitignore
+.venv
+venv
+__pycache__
+*.pyc
+*.egg-info
+dist
+build
+.env
+*.tar.gz
+DESIGN.md
+deploy/

@@ -1,0 +1,26 @@
+services:
+  subwire:
+    build:
+      context: .
+      args:
+        # Bump this to update subwire, then `docker compose up -d --build`.
+        # Pin to a release tag (e.g. v0.1.0) for reproducible deploys.
+        SUBWIRE_VERSION: main
+    image: subwire-deploy:latest
+    container_name: subwire
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    # Secrets your targets reference (token_env / value_env / *_env). Optional —
+    # omit if your endpoints need no auth. `required: false` means no error if
+    # you haven't created a .env file.
+    env_file:
+      - path: .env
+        required: false
+
+    # NOTE: config.yaml and certs/ are baked from THIS folder at build time, so
+    # there are no volume mounts and the container runs the same locally and on a
+    # remote host. Your data and your version pin live here, decoupled from the
+    # subwire code repo. Update subwire = bump SUBWIRE_VERSION above + rebuild.
+
+    # MCP endpoint for mcp-remote / Claude Desktop:  http://<host>:8080/mcp
