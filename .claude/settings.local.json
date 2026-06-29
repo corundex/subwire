@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__subwire__list_targets",
+      "mcp__subwire__http_request"
+    ]
+  }
+}

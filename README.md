@@ -206,6 +206,12 @@ defaults:
   verify: /etc/subwire/home-ca.pem   # whole-LAN trust anchor
 ```
 
+When `verify` points at a CA bundle, subwire **merges** it with the standard
+public trust store (`certifi`) at request time — so the same setting trusts
+both your internal CA *and* every public root, and `https://api.github.com`
+keeps working alongside `https://dozzle.home.lan`. You don't need to override
+`verify` per call for external hosts.
+
 Prefer a single self-signed **wildcard** cert over a CA? That works too — a
 self-signed cert is its own trust anchor, so point `verify` at the cert file.
 Two caveats:

@@ -10,12 +10,14 @@ skipping it for one self-signed internal box.
 from __future__ import annotations
 
 import json
+import ssl
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin
 
+import certifi
 import httpx
 
 from .auth import resolve_auth
@@ -49,6 +51,10 @@ class HttpClient:
     def __init__(self, config: Config):
         self.cfg = config
         self.policy = SecurityPolicy(config)
+        # Merged-trust SSLContexts, cached per CA-bundle path. Built lazily
+        # in _resolve_verify so we don't re-parse certifi (~150 certs) on
+        # every request.
+        self._ssl_cache: dict[str, ssl.SSLContext] = {}
 
     def _resolve_target(self, name: str | None) -> Target | None:
         if name is None:
@@ -75,7 +81,7 @@ class HttpClient:
 
     def _resolve_verify(
         self, target: Target | None, verify_arg: bool | str | None
-    ) -> bool | str:
+    ) -> bool | str | ssl.SSLContext:
         if verify_arg is not None:
             verify = verify_arg
         elif target is not None and target.verify is not None:
@@ -83,16 +89,30 @@ class HttpClient:
         else:
             verify = self.cfg.defaults.verify
 
-        # When verify is a path to a CA bundle (the recommended internal-CA
-        # pattern), fail early and clearly if the file is missing — otherwise
-        # httpx raises an opaque SSL error that's hard to trace back to config.
-        if isinstance(verify, str) and verify.lower() not in {"true", "false"}:
+        # bool stays bool (True = system trust only; False = no verification).
+        if isinstance(verify, bool):
+            return verify
+
+        # CA-bundle path: fail early and clearly if the file is missing,
+        # then return a merged trust store that combines certifi's public
+        # roots with the internal CA. Without the merge, pointing `verify`
+        # at a homelab CA bundle silently REPLACES httpx's default trust
+        # store, so every public HTTPS call (api.github.com, etc.) fails
+        # with an opaque "unable to get local issuer certificate" error.
+        if isinstance(verify, str):
             if not Path(verify).is_file():
                 raise RequestError(
                     f"TLS verify is set to CA bundle {verify!r}, but that file "
                     "does not exist (check the path, or the volume mount if "
                     "running in Docker)"
                 )
+            ctx = self._ssl_cache.get(verify)
+            if ctx is None:
+                ctx = ssl.create_default_context(cafile=certifi.where())
+                ctx.load_verify_locations(cafile=verify)
+                self._ssl_cache[verify] = ctx
+            return ctx
+
         return verify
 
     async def request(
