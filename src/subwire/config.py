@@ -9,6 +9,7 @@ time (see auth.py).
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -181,6 +182,39 @@ class Config:
             self.defaults.disable_dns_rebinding_protection = (
                 v.strip().lower() in {"1", "true", "yes"}
             )
+
+
+def ensure_config_exists(path: str | os.PathLike[str]) -> str:
+    """Seed `path` from the bundled config.example.yaml if it's missing.
+
+    Best-effort: if the bundle isn't accessible or the directory isn't
+    writable, returns the path unchanged and lets `load_config` raise its
+    normal 'file not found' error.
+
+    The goal is the "fresh install / fresh container" UX — a brand-new
+    user runs `subwire` and immediately gets a working config with public
+    demo targets, instead of having to read docs to figure out why nothing
+    is configured.
+    """
+    p = Path(path)
+    if p.exists():
+        return str(p)
+    try:
+        from importlib.resources import files
+        src = files("subwire").joinpath("config.example.yaml")
+        if not src.is_file():
+            return str(p)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(src.read_text())
+        print(
+            f"subwire: no config found — created {p} from the bundled example "
+            "(ships with public demo targets like httpbin/github so you can "
+            "try the tool right away). Edit it to add your own targets.",
+            file=sys.stderr,
+        )
+    except (OSError, ModuleNotFoundError):
+        pass
+    return str(p)
 
 
 def load_config(path: str | os.PathLike[str] | None) -> Config:

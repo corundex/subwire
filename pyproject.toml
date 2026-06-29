@@ -26,3 +26,8 @@ Issues = "https://github.com/Corundex/subwire/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/subwire"]
+
+# Ship config.example.yaml inside the wheel as subwire/config.example.yaml so
+# `subwire` can copy it to ./config.yaml on first run via importlib.resources.
+[tool.hatch.build.targets.wheel.force-include]
+"config.example.yaml" = "subwire/config.example.yaml"

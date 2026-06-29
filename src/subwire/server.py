@@ -17,7 +17,7 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
 from .client import HttpClient, RequestError
-from .config import Config, ConfigError, load_config
+from .config import Config, ConfigError, ensure_config_exists, load_config
 
 _INSTRUCTIONS = """\
 subwire is a configurable HTTP/REST client for homelab and external APIs.
@@ -125,7 +125,11 @@ def main(argv: list[str] | None = None) -> None:
         "-c",
         "--config",
         default=os.getenv("SUBWIRE_CONFIG"),
-        help="Path to YAML config (or set SUBWIRE_CONFIG). Optional.",
+        help=(
+            "Path to YAML config (or set SUBWIRE_CONFIG). Optional — defaults "
+            "to ./config.yaml, which is auto-created from the bundled example "
+            "on first run so a fresh install has working demo targets."
+        ),
     )
     parser.add_argument(
         "--http",
@@ -159,8 +163,16 @@ def main(argv: list[str] | None = None) -> None:
     )
     args = parser.parse_args(argv)
 
+    # Resolve the config path with a sensible default, then seed it from the
+    # bundled example if missing. Order: explicit --config > SUBWIRE_CONFIG
+    # > ./config.yaml. Auto-seeding means a fresh install / fresh container
+    # always has a working starting point (public demo targets), instead of
+    # silently starting with zero targets and the user wondering why.
+    config_path = args.config or "config.yaml"
+    config_path = ensure_config_exists(config_path)
+
     try:
-        config = load_config(args.config)
+        config = load_config(config_path)
     except ConfigError as exc:
         print(f"subwire: configuration error: {exc}", file=sys.stderr)
         print(

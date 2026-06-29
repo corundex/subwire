@@ -1,14 +1,10 @@
 #!/bin/sh
+# subwire container entrypoint.
+#
+# The CLI auto-seeds a missing config file from the bundled example, so this
+# script is now a thin shim: resolve the config path and exec subwire. No
+# bespoke fallback logic needed — `subwire` itself will print a clear message
+# when it seeds, and the bundled example ships with public demo targets so the
+# container is usable from the first request.
 set -e
-
-CONFIG="${SUBWIRE_CONFIG:-/etc/subwire/config.yaml}"
-
-if [ ! -f "$CONFIG" ]; then
-  echo "subwire: '$CONFIG' was not baked into this image." >&2
-  echo "subwire: starting with the bundled example (no targets configured)." >&2
-  echo "subwire: to use your own targets: copy config.example.yaml to config.yaml," >&2
-  echo "subwire: edit it, then rebuild the image (docker compose up -d --build)." >&2
-  CONFIG="/etc/subwire/config.example.yaml"
-fi
-
-exec subwire --http --config "$CONFIG"
+exec subwire --http --config "${SUBWIRE_CONFIG:-/etc/subwire/config.yaml}"

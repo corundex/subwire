@@ -67,7 +67,7 @@ make install       # installs the `subwire` command
 make run           # runs on stdio, using config.yaml
 ```
 
-Then add it to Claude Desktop (see [below](#connecting-it-to-claude-desktop)).
+Then add it to your client — Claude Code or Claude Desktop (see [below](#connecting-it)).
 
 ### B. As a server on your homelab / a remote host (Docker)
 
@@ -79,14 +79,34 @@ make up            # builds the image (with your config.yaml inside) and starts 
 # equivalently: docker compose up -d --build
 ```
 
-The MCP endpoint is then `http://<host>:8080/mcp`. Point Claude Desktop at it via
-`mcp-remote` (see [below](#connecting-it-to-claude-desktop)).
+The MCP endpoint is then `http://<host>:8080/mcp`. Point your client at it
+(see [below](#connecting-it)) — `claude mcp add` for Claude Code, or
+`mcp-remote` for Claude Desktop.
 
 > No config at all? `subwire` still runs — it just has no named targets, and you
 > pass full URLs directly. Default policy: reach LAN + public, block cloud
 > metadata.
 
-## Connecting it to Claude Desktop
+## Connecting it
+
+### Claude Code (CLI / VS Code extension)
+
+One command — `claude mcp add` writes the entry for you:
+
+```bash
+# Local stdio (subwire installed on the same machine)
+claude mcp add --scope user subwire subwire
+
+# Remote streamable-HTTP (subwire running in Docker on your homelab)
+claude mcp add --transport http --scope user subwire http://subwire.home.lan/mcp
+```
+
+`--scope user` makes the server available across all your projects. Verify with
+`claude mcp list` or the `/mcp` slash command. Restart Claude Code (new chat
+or reopen the extension) after the first add — MCP servers are loaded at session
+startup.
+
+### Claude Desktop
 
 **Local (stdio):**
 
@@ -120,18 +140,18 @@ The MCP endpoint is then `http://<host>:8080/mcp`. Point Claude Desktop at it vi
 ### `http_request`
 Make a request. Either pass an absolute `url`, or a `target` + relative `url`.
 
-| arg | type | notes |
-|-----|------|-------|
-| `url` | string | absolute, or relative to the target's `base_url` |
-| `method` | string | default `GET` |
-| `headers` | object | merged over target defaults |
-| `params` | object | query string |
-| `json_body` | any | JSON body (sets Content-Type) |
-| `body` | string | raw body (non-JSON) |
-| `target` | string | named profile to use |
-| `timeout` | number | seconds |
-| `verify` | bool \| string | TLS override: `true`, `false`, or a CA-bundle path |
-| `max_bytes` | int | response body cap |
+| arg         | type           | notes                                              |
+| ----------- | -------------- | -------------------------------------------------- |
+| `url`       | string         | absolute, or relative to the target's `base_url`   |
+| `method`    | string         | default `GET`                                      |
+| `headers`   | object         | merged over target defaults                        |
+| `params`    | object         | query string                                       |
+| `json_body` | any            | JSON body (sets Content-Type)                      |
+| `body`      | string         | raw body (non-JSON)                                |
+| `target`    | string         | named profile to use                               |
+| `timeout`   | number         | seconds                                            |
+| `verify`    | bool \| string | TLS override: `true`, `false`, or a CA-bundle path |
+| `max_bytes` | int            | response body cap                                  |
 
 Returns JSON: `{request, status, ok, elapsed_ms, headers, body, truncated}`.
 JSON response bodies are parsed into structured data automatically.
@@ -307,15 +327,17 @@ literal/pattern, not re-resolved); allow/deny are globs, not regex.
 
 ## Troubleshooting
 
-**subwire doesn't show up in Claude Desktop.** Tools only appear when the app
-connects to the server at startup. Fully quit and reopen Claude Desktop (don't
-just close the window), then check Settings → Connectors. For the remote/HTTP
-setup, make sure the container is running (`make logs`) and the URL ends in
-`/mcp`.
+**subwire doesn't show up in the client.** MCP servers are loaded at startup.
+For **Claude Code**: open a new chat or restart the VS Code extension after
+`claude mcp add`; `claude mcp list` or `/mcp` should show it Connected. For
+**Claude Desktop**: fully quit and reopen (don't just close the window), then
+Settings → Connectors. For remote/HTTP setups, make sure the container is up
+(`make logs`) and the URL ends in `/mcp`.
 
 **"config file not found".** The path you passed with `--config` doesn't exist.
-Run `make config` to create `config.yaml`, or run `subwire` with no `--config` to
-start with no targets.
+Run `make config` to create `config.yaml`, or just run `subwire` with no flags —
+it auto-creates `./config.yaml` from the bundled example on first run, so the
+server starts with a few demo targets you can immediately try.
 
 **A request fails with "TLS verify is set to CA bundle ... but that file does not
 exist".** Your `verify:` path is wrong, or (in Docker) the cert wasn't baked in.

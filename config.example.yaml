@@ -1,91 +1,124 @@
 # subwire configuration — annotated example.
-# Copy to config.yaml and edit. Every setting resolves by precedence:
+# Copy to config.yaml and edit (or just run `subwire`, which auto-creates
+# config.yaml from this file on first run). Every setting resolves by precedence:
 #   explicit tool argument  >  target value  >  defaults below.
+#
+# This default ships with a few PUBLIC demo targets so you can try the tool the
+# moment it's installed, with no homelab DNS / certs / firewalls to configure.
+# The homelab patterns (internal CA, *.home.lan targets, per-host auth) are at
+# the bottom, commented out — uncomment when you're ready.
 
 defaults:
   timeout: 30                 # seconds, per request
 
-  # --- TLS (read this) --------------------------------------------------------
-  # Recommended pattern for a homelab: stand up ONE internal CA, sign your
-  # services' certs with it, and point `verify` at the CA root here. Then every
-  # *.home.lan host whose cert chains to it validates with verification ON —
-  # this is the whole-LAN "wildcard", set once. Drop per-target verify overrides.
-  #
-  #   verify: /etc/subwire/certs/home-ca.pem
-  #
-  # Alternatives:
-  #   verify: true            # only calling public hosts (default if omitted)
-  #   verify: false           # disable verification globally (NOT recommended)
-  # You can also point `verify` at a single self-signed *wildcard* cert instead
-  # of a CA — see the SAN/wildcard notes in README.md (the cert MUST carry the
-  # name in its subjectAltName, not just CN, or validation fails).
-  #
-  # Docker: drop the CA/cert file in the ./certs/ folder; it's baked to
-  # /etc/subwire/certs/. Local (non-Docker): point this at wherever your CA lives.
-  verify: /etc/subwire/certs/home-ca.pem
+  # TLS verification. `true` uses the standard public trust store (certifi),
+  # which validates every public host out of the box. When you switch to an
+  # internal-CA pattern later (see the bottom of this file), point this at the
+  # CA bundle — subwire MERGES it with the public trust store, so the same
+  # setting trusts internal AND public hosts. No per-call override needed.
+  verify: true
 
   allow_http: true            # permit plain http:// (set false to force TLS)
   read_only: false            # true => only GET/HEAD/OPTIONS are ever allowed
   max_response_bytes: 100000  # cap returned body size; larger bodies truncated
   follow_redirects: true
 
-  # --- streamable-HTTP transport (only matters when running with --http) ------
-  # The MCP SDK protects the HTTP transport from DNS rebinding by checking the
-  # Host header against an allowlist. Its default allows only localhost, so a
-  # LAN client reaching this server by hostname gets `421 Misdirected Request`.
-  # List every hostname/port clients use; "host:*" port-wildcard supported.
-  # Or set disable_dns_rebinding_protection: true for a trusted LAN.
+  # streamable-HTTP transport. The MCP SDK ships a DNS-rebinding defense that
+  # only accepts Host: localhost by default — fine for stdio, but it makes a
+  # LAN deploy (Claude Code / mcp-remote reaching subwire over the network)
+  # return 421 Misdirected Request. For a trusted LAN this default is right.
+  # Flip to `false` and list `allowed_hosts: [subwire.home.lan, ...]` if you
+  # want the stricter posture.
+  disable_dns_rebinding_protection: true
   allowed_hosts: []
     # - subwire.home.lan
     # - subwire.home.lan:8081
     # - master.home.lan:*
-  disable_dns_rebinding_protection: false
 
 security:
-  # This tool is meant to reach internal hosts, so private ranges are allowed by
-  # default. The one thing nobody's homelab needs — the cloud metadata endpoint —
-  # is blocked by default.
+  # subwire is built to reach internal hosts on purpose, so private ranges are
+  # allowed by default. The one thing nobody's homelab needs — the cloud
+  # metadata endpoint (169.254.169.254) — is blocked by default.
   allow_private: true         # 10/8, 172.16/12, 192.168/16, fc00::/7, *.home.lan, bare hostnames
   allow_loopback: true        # 127.0.0.0/8, ::1
-  allow_metadata: false       # 169.254.0.0/16 incl. 169.254.169.254 — keep this false
+  allow_metadata: false       # 169.254.0.0/16 — KEEP false unless you really mean it
   allow_hosts: []             # extra explicit allow globs, e.g. ["api.partner.com"]
-  deny_hosts: []              # explicit deny globs; win over everything, e.g. ["*.admin.home.lan"]
+  deny_hosts: []              # explicit deny globs; win over everything
 
+# ─── Public demo targets ─────────────────────────────────────────────────────
+# These work the second you install subwire — no DNS, no certs, no auth.
+# Try them with your MCP client to confirm everything is wired correctly.
 targets:
-  # With an internal CA at defaults.verify, internal hosts need NO verify line —
-  # they inherit the CA and validate normally.
 
-  # --- monitoring (read-only) -------------------------------------------------
-  prometheus:
-    base_url: http://prometheus.home.lan:9090
-    allowed_methods: [GET]    # never let it do anything but read
-    # call: http_request(target="prometheus", url="/api/v1/query", params={"query":"up"})
+  httpbin:
+    base_url: https://httpbin.org
+    # The classic HTTP request/response inspector. Echoes back whatever you
+    # send. Great for verifying that GET/POST/headers/JSON all round-trip.
+    # call: http_request(target="httpbin", url="/get", params={"hello":"world"})
+    # call: http_request(target="httpbin", method="POST", url="/post",
+    #                    json_body={"any": "json"})
 
-  # --- local LLM --------------------------------------------------------------
-  llama:
-    base_url: http://llama.home.lan
-    # http_request(target="llama", method="POST", url="/v1/chat/completions",
-    #              json_body={"model":"...","messages":[...]})
-
-  # --- internal HTTPS service: inherits the CA, verification stays ON ----------
-  dozzle:
-    base_url: https://dozzle.home.lan
-    # no verify line needed once dozzle's cert is signed by your CA
-
-  # --- container management (CA-signed cert, just needs an API key) ------------
-  portainer:
-    base_url: https://portainer.home.lan
-    auth: { type: apikey, header: X-API-Key, value_env: PORTAINER_KEY }
-
-  # --- the exception: a host you CAN'T re-issue a cert for (e.g. a vendor
-  #     appliance with a baked-in self-signed cert). Override per-target only here.
-  legacy-appliance:
-    base_url: https://nas.home.lan
-    verify: false
-
-  # --- external site you publish to (public cert; bearer token from env) ------
-  smartoffs:
-    base_url: https://www.smartoffs.com
-    auth: { type: bearer, token_env: SMARTOFFS_TOKEN }
+  github:
+    base_url: https://api.github.com
+    # GitHub's public REST API. Many endpoints work without auth (rate-limited
+    # to 60/hour per IP, plenty for trying things out).
+    # call: http_request(target="github", url="/zen")            # random koan
+    # call: http_request(target="github", url="/repos/Corundex/subwire")
     headers:
-      Accept: application/json
+      Accept: application/vnd.github+json
+
+  google:
+    base_url: https://www.google.com
+    # Reachability sanity check. `HEAD /` returns 200 if you can talk to the
+    # public internet at all — useful when nothing seems to work.
+    # call: http_request(target="google", method="HEAD", url="/")
+    allowed_methods: [GET, HEAD]
+
+# ─── Homelab patterns (commented out — uncomment when you're ready) ──────────
+# This is the *real* use case subwire was built for: every box on your LAN
+# reachable through one tool, with auth via env vars and verified TLS via your
+# own internal CA. None of these will resolve on a vanilla install, which is
+# why they're commented out.
+#
+# Step 1 — point `defaults.verify` at your internal CA root (subwire will merge
+# it with the public roots automatically, so the public demos above keep working):
+#
+#   defaults:
+#     verify: /etc/subwire/certs/home-ca.pem
+#
+# Step 2 — uncomment and edit the targets below:
+#
+#   # Read-only monitoring
+#   prometheus:
+#     base_url: http://prometheus.home.lan:9090
+#     allowed_methods: [GET]
+#     # call: http_request(target="prometheus", url="/api/v1/query",
+#     #                    params={"query":"up"})
+#
+#   # Local LLM (e.g. llama.cpp / Ollama-style)
+#   llama:
+#     base_url: http://llama.home.lan
+#     # call: http_request(target="llama", method="POST",
+#     #                    url="/v1/chat/completions",
+#     #                    json_body={"model":"...","messages":[...]})
+#
+#   # Internal HTTPS service — inherits the CA, verification stays ON
+#   dozzle:
+#     base_url: https://dozzle.home.lan
+#
+#   # Container management — CA-signed cert + API key from the environment
+#   portainer:
+#     base_url: https://portainer.home.lan
+#     auth: { type: apikey, header: X-API-Key, value_env: PORTAINER_KEY }
+#
+#   # The one box you CAN'T re-issue a cert for (vendor appliance, etc.)
+#   legacy-appliance:
+#     base_url: https://nas.home.lan
+#     verify: false
+#
+#   # An external SaaS you publish to (bearer token from env)
+#   smartoffs:
+#     base_url: https://www.smartoffs.com
+#     auth: { type: bearer, token_env: SMARTOFFS_TOKEN }
+#     headers:
+#       Accept: application/json
