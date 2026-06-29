@@ -7,7 +7,7 @@ somewhere else. One universal `http_request` tool, named per-host profiles,
 per-host TLS control, and a security policy built for a network where reaching
 internal hosts is the *point*.
 
-> Status: v0.1. MIT licensed. Issues and PRs welcome.
+> Status: v1.0. MIT licensed. Issues and PRs welcome.
 
 ## Why another HTTP MCP server?
 
@@ -164,7 +164,7 @@ it may reach.
 ## Configuration
 
 YAML. Every setting resolves by precedence **explicit arg > target > default**.
-See [`config.example.yaml`](./config.example.yaml) for an annotated copy.
+See [`config.example.yaml`](https://github.com/Corundex/subwire/blob/main/config.example.yaml) for an annotated copy.
 
 ```yaml
 defaults:
@@ -276,7 +276,7 @@ There are two ways to run subwire in Docker, depending on who you are:
 
 ### Run a pinned release with your own data (recommended for users)
 
-Use the [`deploy/`](./deploy/) template. It keeps **your** config and certs in a
+Use the [`deploy/`](https://github.com/Corundex/subwire/tree/main/deploy) template. It keeps **your** config and certs in a
 folder *you* own, pulls a pinned subwire version from GitHub at build time, and
 bakes them together — so updating subwire never touches your data, and there are
 no volume mounts.
@@ -289,7 +289,7 @@ docker compose up -d --build      # pulls subwire + bakes your data
 ```
 
 Updating later is a one-line version bump in `deploy/docker-compose.yaml`, then
-rebuild — see [`deploy/README.md`](./deploy/README.md). This is the cleanest path
+rebuild — see [`deploy/README.md`](https://github.com/Corundex/subwire/blob/main/deploy/README.md). This is the cleanest path
 for a homelab, especially for shipping to a remote host (clone your deploy repo
 on the server and `up`).
 
@@ -322,8 +322,10 @@ private IPs. Instead, evaluated in order:
 TLS verification is per-target and never silently disabled globally. Secrets stay
 in env vars and configured auth headers are redacted from echoed requests.
 
-**Known v0.1 limitations:** no DNS-rebinding defense (host is classified by
-literal/pattern, not re-resolved); allow/deny are globs, not regex.
+**Known limitations:** no DNS-rebinding defense in the outbound classifier
+(hosts are matched by literal/pattern, not re-resolved at request time, so
+an attacker who controls a name in your allow-list could rebind it to a
+denied address); allow/deny are globs, not regex.
 
 ## Troubleshooting
 
@@ -341,7 +343,7 @@ server starts with a few demo targets you can immediately try.
 
 **A request fails with "TLS verify is set to CA bundle ... but that file does not
 exist".** Your `verify:` path is wrong, or (in Docker) the cert wasn't baked in.
-Put the file in [`certs/`](./certs/), reference it as
+Put the file in [`certs/`](https://github.com/Corundex/subwire/tree/main/certs), reference it as
 `/etc/subwire/certs/<file>`, and rebuild with `make up`.
 
 **A request fails with a certificate error against an internal host.** The host's
@@ -368,4 +370,4 @@ Set it back to `true` for homelab use.
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT — see [LICENSE](https://github.com/Corundex/subwire/blob/main/LICENSE).

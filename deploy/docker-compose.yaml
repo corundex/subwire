@@ -4,7 +4,7 @@ services:
       context: .
       args:
         # Bump this to update subwire, then `docker compose up -d --build`.
-        # Pin to a release tag (e.g. v0.1.0) for reproducible deploys.
+        # Pin to a release tag (e.g. v1.0.0) for reproducible deploys.
         SUBWIRE_VERSION: main
     image: subwire-deploy:latest
     container_name: subwire

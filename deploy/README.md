@@ -38,7 +38,7 @@ Your data is untouched; you just change which version gets pulled.
 docker compose up -d --build
 ```
 
-Pin to a release **tag** (e.g. `v0.1.0`) for reproducible deploys; use `main`
+Pin to a release **tag** (e.g. `v1.0.0`) for reproducible deploys; use `main`
 for the latest. Because this deploy repo never tracks the upstream code, there's
 no `git pull` to reconcile and nothing of yours to overwrite.
 

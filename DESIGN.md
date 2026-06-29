@@ -5,7 +5,7 @@ homelab and beyond — from `GET`ting a Prometheus metric, to chatting with a
 local LLM, to calling an authenticated external API and posting the result
 somewhere else.
 
-Status: v0.1 design. Single author, MIT-licensed, intended for a public repo.
+Status: v1.0 design. Single author, MIT-licensed, intended for a public repo.
 
 ---
 
@@ -167,8 +167,9 @@ internal admin box the agent should never touch).
 6. **Secrets** live only in env vars referenced by name in the config; the
    server redacts configured auth headers from any response echo and from logs.
 
-Known v0.1 limitations (documented, not hidden): no DNS-rebinding defense; host
-classification trusts the literal/pattern; allowlist is glob, not regex.
+Known limitations (documented, not hidden): no outbound DNS-rebinding defense
+(host classification trusts the literal/pattern, not re-resolved at request
+time); allowlist is glob, not regex.
 
 ---
 

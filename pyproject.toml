@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "subwire"
-version = "0.1.0"
+version = "1.0.0"
 description = "A configurable HTTP/REST MCP server for homelab and external APIs."
 readme = "README.md"
 requires-python = ">=3.11"
