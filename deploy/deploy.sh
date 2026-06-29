@@ -24,7 +24,14 @@
     export TARGET=${TARGET:-master.home.lan}
     
     echo -e "${YELLOW}📦 Building and deploying Docker services...${NC}"
-    DOCKER_HOST=$TARGET docker compose up --build --detach --force-recreate
+    # Two-step build+up. The Dockerfile installs subwire from
+    # `git+https://github.com/Corundex/subwire@main`; because that RUN line's
+    # text never changes, `docker compose up --build` would happily reuse a
+    # cached layer and reinstall the OLD subwire commit. `build --no-cache
+    # --pull` forces a fresh `pip install` (and refreshes the base image) so
+    # every deploy actually picks up the latest pushed main.
+    DOCKER_HOST=$TARGET docker compose build --no-cache --pull \
+      && DOCKER_HOST=$TARGET docker compose up --detach --force-recreate
     status=$?
 
     echo
